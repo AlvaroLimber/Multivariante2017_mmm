@@ -1,0 +1,404 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc} % Caracteres con acentos. 
+\usepackage[T1]{fontenc}%paquete principal3
+\usepackage{hyperref}
+%\usepackage{apacite} 
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{pdflscape}
+\usepackage{longtable}
+\usepackage{mathtools}
+%\usepackage{uarial}
+\usepackage[affil-it]{authblk}
+\usepackage[left=0.7in, right=0.7in, top=0.7in, bottom=0.7in]{geometry}
+\title{Aplicación del análisis Multivariante al \\ LatinoBarometro 2015}
+\author{Alvaro Chirino \& Marcelo Parraga \& Daniel Vargas \& Juan Carlos Quispe}
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\maketitle
+\section{Introducción}
+	La presente investigación es un ejercicio practico para la consolidación de las herramientas metodologías y analíticas de la materia Análisis Multivariante a partir de la base de Datos LatinBarometro 2015, esta base pertenece a la iniciativa LatinoBarometro que es una organización sin fines de lucro que durante 20 años ha realizado estudios sobre la opinión publica en Latinoamerica en distintos ámbitos política, economía, gobierno entre otros. Esta base presenta cualidades deseables y favorables para el desarrollo de técnicas multivariantes.\\
+	
+La elección de esta base responde a que los autores consideran que se adapta a los métodos que se desarrollan en la materia, así mismo, las características propias de la base hace que la aplicación sea un desafió al ser una  base con información social y proveniente de una encuesta por muestreo.\\
+
+Al ser la base de datos de percepción de la opinión publica y provenir de un diseño muestral que garantiza la representatividad se cuenta con un diseño muestral muy riguroso ademas de contextualizado  a las condiciones políticas del país, es una premisa el reflejar la percepción de opinión desde afuera pero sabiendo como mirar el espacio  analizado bajo esquemas teóricos del conjunto de las ciencias sociales así tenemos enfoques de la teoría del bienestar paretiano contrastado con lecturas sociológicas desde el interaccionismo simbólico, contando con un resultado inmenso para el análisis  social y el debate publico.\\
+	
+Se cuenta con una batería inmensa de datos  desde  categorizaciones clásicas a escalas inker ademas de datos cuantitativos, las metodologías de captura son diversas y rigurosas sin ser poco didácticas para la población objetivo.\\
+
+El trabajo desarrolla en \ref{dat} una descripción de la fuente de los datos y las características del diseño muestral, en \ref{ap} se desarrolla la aplicación de los temas vistos en la materia, siguiendo el protocolo establecido por la docente, Finalmente en \ref{con} se listan las conclusiones del trabajo.\\
+
+Este documento fue desarrollado con LaTex y Sweave, el código fuente se desarrolla en un solo archivo, este se encuentra disponible en \url{https://github.com/AlvaroLimber/Multivariante2017_mmm}.\\
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Datos}
+\label{dat}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Diseño muestral}
+
+Según la ficha técnica se aplico para el caso de Bolivia un Muestreo probabilístico modificado,	estratificado con asignación 	proporcional a la población en cada estrato, polietápico con selección de cuotas en la etapa final entre el 15 de Enero al 15 de Febrero de 2015 a 1200 personas en todo el país. No se crearon factores de expancion, pero si se definieron pesos analíticos. La figura \ref{wt} presenta los diagramas de caja del logaritmo de los pesos, en este se observa que para Bolivia no existen ruidos en las ponderaciones, mientras que en Chile se aprecia que la ponderación es errática y podría estar representando un sesgo sistemático. La figura \ref{wt2} muestra la distribución empírica para los pesos en Bolivia donde se observa que tienen una forma regular muy parecida a la Normal y que la sospecha de sesgos asociados al diseño muestral son reducidos.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%los datos
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+<<echo=F>>=
+rm(list=ls())
+#librerias
+library(ca)
+library(foreign)
+library(MASS)
+library(knitr)
+library(xtable)
+library(survey)
+#ruta de trabajo
+#ubuntu
+load("/home/alvaro/Dropbox/!maestria_mm/multivariante/latin2015r/Latinobarometro_2015_Esp.rdata")
+#IOS
+#load("/Users/iMac6/Dropbox/!maestria_mm/multivariante/latin2015r/Latinobarometro_2015_Esp.rdata")
+#load("/Users/alvarolimber/Dropbox/!maestria_mm/multivariante/latin2015r/Latinobarometro_2015_Esp.rdata")
+bd<-Latinobarometro_2015_Esp
+rm(Latinobarometro_2015_Esp)
+##Opcion por internet
+#bd<-read.dta("http://alvarolimber.github.io/img/latin2015.dta")
+lp<-c("ARG","BOL","BRA","CHL","COL","CRI","DOM","ECU","ESA","GTM","HND","MEX","NIC","PAN","PRY","PER","URY","VEN")
+#Diseño muestral
+sd1<-svydesign(id=~1,weights =~wt,data=bd)
+@
+
+
+
+
+<<echo=FALSE,results=hide>>=
+pdf("wt.pdf",width = 14)
+boxplot(log(bd$wt)~bd$idenpa,names=lp)
+dev.off()
+pdf("wt1.pdf",width = 14)
+plot(density(bd[bd$idenpa==68,"wt"]),main="")
+dev.off()
+@
+
+\begin{figure}[ht] 
+
+\centering 
+\includegraphics{wt.pdf} 
+\label{wt1} 
+\caption{Diagrama de caja de los pesos analíticos por países}
+\end{figure} 
+
+\begin{figure}[ht] 
+
+\centering 
+\includegraphics[scale=0.7]{wt1.pdf} 
+\label{wt2} 
+\caption{Densidad de los pesos para Bolivia}
+\end{figure} 
+	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Aplicación}
+\label{ap}
+En esta sección se desarrollan los métodos multivariantes aplicados al LatinoBarometro
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{FASE 0: Analisis previo de los datos}
+
+Para describir la base de datos apuntamos que la encuesta recoge datos cualitativos con la aplicacion de escalas inker, preguntas categoricas y de seleccion multiple, el instrumenro tiene por objeto capturar la percecpion de la opinion publica para  la base 2015 se hace enfasis en dos grandes temas  para tal efecto se orienta el instrumento para medir: \medskip
+	\begin{itemize}
+		\item 	\textbf{Democracia} cantidad de acceso a bienes politicos: igualdad ante la ley, oportunidades, meritocracia.
+			\textbf{Economia}  cantidad de acceso a bienes economicos, y posesion de bienes.
+	\end{itemize}
+
+Esta version de la encuesta conmemora los 20 años de trabajo en la region para facilitar el trabajo de analisis y darle posibilidades de interperetacion socioecnomica  ademas de versatilidad en la aplicaicon de la teoria multivariante se ha  categorizado las preguntas en 6 subtemas:
+	\begin{itemize}
+		\item \textbf{Democracia} Un estado democrarico permite la funcionalidad coordinada y horizontal de ciertas practicas criticas de la gobernanza la literatura las sinteiza princiapalmente en tres:
+		\begin{itemize}
+			\item Gobernabilidad: Se define a las variables que se vinculen a percepcion del gobierno nacional.
+	\item Institucionalidad: Se define variables vincualudas a las valoraciones de las intituciones de cada pais.
+	\item Conflcitividad:Se define variables vinculadas a la percepcion de inseguridad y predisposicion al conflcito.
+	\end{itemize}
+	Estas variables estan altamente vinculadas y condicionanadas entre si, la gobernabilidad  describe la eficiencia administrativa de los poderes del estado, la institucionalidad resuelve los problemas de agencia(corrupcion, sobre posicion de intereses politicos, discriminacion etc) permitiendo de este modo la coordinacion y accion publica de sus instituciones, entonces el grado de conflcitividad es un resultado de ambas practicas. \medskip
+	
+			\item \textbf{Economia}
+			\item Seguridad Economica Percepcion de las condiciones materiales en el tiempo(progreso, desarrollo etc), y sus posibilidades de mejora.
+			\item Bienstar Cualificacion de las condiciones materiales inmediatas para el acceso a bienes publicos.(condiciones de salud, educacion, seguridad )
+			\item Oportunidades Perspectivas  futuras acerca de  ingresar a procesos de mejora social.
+	\end{itemize}
+
+Un estado que concibe sus posibilidadesa de gobierno en la medida de garantizar escenarios de democracia debe tambien establecer politicas Economicas orientadas a resolver brechas de pobreza, desigualdad e inequidad, sin que ello implique poner en riesgo su estabilidad macroeconomica , en ese sentido es importante no solo verficar los inidicadores macro, sino incursionar en el monitoreo de la recpecion de la politca economica como un resultado de la interaccion del mercado. \medskip
+
+Los monitoreos de cualificacion del desempeño economico y satisfaccion economica usualemente estan contenidos en los aspectos descritos anteriormente. La sensacion de seguridad economica brinda a los agentes buenos escenarios de inversion y planes de gasto, el Bienstar en tanto acceso a bienes publicos es fundamental para apreciar situaiones de desigualdad economica y condicionan la sensacion de seguridad, las oportunidades en largo plazo permiten apreciar escenarios de mejora, dando incentivos sociales a los agentes para realizar inversiones en educacion, por ejemplo.\medskip
+
+%\subsubsection{Descripción de los objetos y variables de su base de datos}
+%\subsubsection{Examen gráfico de los datos}
+%\subsubsection{Datos Ausentes y Aproximaciones al tratamiento de estos datos}
+%\subsubsection{Casos Atípicos}
+%\subsubsection{Verificación de los supuestos del análisis multivariante}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Primera Fase: Análisis de Componentes Principales}
+\subsubsection{Objetivos}
+El objetivo es:
+\begin{quote}
+Utilizar componentes principales para resumir la información de 4 grupos de variables 
+\end{quote}
+
+\subsubsection{Diseño del ACP}
+
+Se utiliza la base del LatinoBarometro 2015, se seleccionan solo los casos para Bolivia y no se toman en cuenta las opciones 'No Sabe' y 'No responde' del grupo de preguntas seleccionadas. Estos grupos son:
+
+\begin{enumerate}
+\item Confianza en instituciones A (P16), 9 preguntas
+\item Confianza en instituciones B (P19), 8 preguntas
+\item Comunicación personal política, 3 preguntas
+\item Activismo político, 6 preguntas
+\end{enumerate}
+
+Todas las preguntas no son cuantitativas, las preguntas son cualitativas de orden ordinal lo que hace que el uso de componentes principales pueda realizarce usando el orden que definen las preguntas.
+
+\subsubsection{Verificación de supuestos}
+
+Se explora la correlacion de las variables utilizando la libreria Hmisc que realiza una epxloración sobre los pares de variables. 
+
+<<echo=FALSE>>=
+bdcp<-bd[bd$idenpa==68,]
+bdcp<-bdcp[,c(58:66,69:76,77:85,338)]
+for(i in 1:(dim(bdcp)[2]-1)){
+  bdcp<-bdcp[bdcp[,i]>=0,]
+}
+sdcp<-svydesign(~1,data=bdcp,weights = ~wt)
+library("Hmisc")
+@
+
+
+<<echo=T>>=
+res2 <- rcorr(as.matrix(bdcp[,-27]))
+#Explorando el p-valor del test
+#pares con probable no asociacion
+sum(res2$P>.10,na.rm = T)
+#pares con probable asociacion
+sum(res2$P<.10,na.rm = T)
+@
+
+Se aprecia que la mayor parte de los pares de variables tienen una probable asociación al 10\% de significancia.
+
+\subsubsection{Estimación de los componentes}
+Para la estimacion de los componentes se empleo la libreria survey que tiene un comando que construye los componentes empleando el diseño muestral. Dado que las variables tienen diferente recorrido se trabaja con la matriz de correlaciones. Los resultados son:
+
+<<echo=T>>=
+vcp<-paste(names(bdcp)[-27],collapse="+")
+vcp<-paste0("~",vcp)
+cp<-svyprcomp(as.formula(vcp),design = sdcp,center = T,scale. = T,scores = T)
+summary(cp)
+@
+
+Debido a que se realizo la estimación con la matriz de correlaciones se eligio el metodo del eigen valor mayor a uno para retener los componentes, el screeplot es:
+
+<<fig=TRUE,echo=F>>=
+screeplot(cp,type="l")
+abline(h=1,col="red",lty=2)
+@
+
+Que implica retener 6 componentes que explican el 56\% de la variabilidad
+
+\subsubsection{Interpretacion de los componentes}
+
+Para la interpretacion de los componentes se calculan las correlaciones de las variables originales con los 6 componentes retenidos y se identifico la correlacion mas alta de las variables con alguno de los componentes (cc) y el signo de la correlación (ccs). Los resultados son:
+
+<<echo=T>>=
+cp1<-predict(cp)
+cp1<-cp1[,1:6]
+bdcp<-data.frame(bdcp,cp1)
+cc<-cor(bdcp[-27])[1:26,27:32]
+ccs<-cor(bdcp[-27])[1:26,27:32]
+for(i in 1:26){
+  ccs[i,]<-cc[i,]>0
+  cc[i,]<-abs(cc[i,])==max(abs(cc[i,]))
+}
+t(cc)
+t(ccs)
+@
+
+En base a las tablas se identifica:
+
+\begin{enumerate}
+\item El primer componente explica la confianza en las instituciónes (excluyendo a la iglesia).
+\item El segundo componente explica la participación política
+\item El tercer componente explica la confianza en la iglesia
+\item El resto de los componetes no presentan las mayores asociaciones con las variables consideradas
+\end{enumerate}
+
+<<fig=TRUE>>=
+plot(cp1[,1],bdcp[,1])
+@
+
+<<fig=TRUE>>=
+plot(cp1[,2],bdcp$P20TGB.A)
+@
+
+
+\subsubsection{Validación}
+
+Para la validación se probara si los componentes tienen una distribución normal por componente.
+
+<<>>=
+apply(cp1,2,shapiro.test)
+@
+
+Aplicando el test de shapiro wilks se presume que el primer componetes es normal, mientras que los demas no denotan un p-valor lo suficiente significante para concluir en normalidad. Tambien se muestra las densidades empiricas para cada componente con la intension de mostrar que los componetes no se alejan demasiado de la forma de una densidad normal y que para confirmar su distribucion es necesario probar con otros test de normalidad.
+
+<<fig=TRUE>>=
+plot(density(cp1[,1]),col=1,ylim=c(0,0.45),type="l")
+for(i in 2:6){
+points(density(cp1[,i]),col=i,type="l")  
+}
+legend("topright",legend=paste0("CP",1:6),col=1:6,lwd=1)
+@
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Segunda Fase: Análisis de Correspondencia}
+En esta sección se desarrolla la aplicación del análisis de correspondencia a los datos del LatinoBarometro 2015.
+\subsubsection{Análisis previo de los datos}
+Con la finalidad de ejemplificar las aplicaciones se elegirán 2 combinaciones de variables, la primera orientada al análisis de correspondencia simple y el segundo al múltiple. Estos arreglos se eligieron con la idea de representar por país el estado de ciertas características o dimensiones.
+
+\begin{itemize}
+\item País (idenpa) con percepción de progreso (P2ST)
+\item País (idenpa), percepción de progreso (P2ST) y confianza en el gobierno (P16STG)
+\end{itemize}
+
+\subsubsection{Objetivos del análisis de correspondencias}
+
+El objetivo es:
+
+\begin{quote}
+Explorar las relaciones que existen en los países latinoamericanos respecto a la percepción del progreso y la confianza con el gobierno
+\end{quote}
+
+\subsubsection{Diseño de la investigación mediante análisis de correspondencias}
+
+Con la intensión de explorar la relación de las variables definidas se diseñaron tablas de contingencia para el primer grupo de variables; no se tomaron en cuenta las categorías ``no sabe'' y ``no responde'', el resultado se muestra en el cuadro \ref{t1}. El cuadro resultante es tomado sobre la muestra, con el fin de usar el principio de inferencia se debe incorporar el diseño muestral para el calculo de la table, este se muestra en el cuadro \ref{t2}
+
+<<echo=F,results=tex>>=
+t1<-table(bd$idenpa,bd$P2ST)[,3:5]
+rownames(t1)<-lp
+colnames(t1)<-c("Progreso","Estancado","Retroceso")
+xtable(t1,"Pais vs Percepción de Progreso (sobre la muestra)","t1")
+@
+
+<<echo=F,results=tex>>=
+t2<-svytable(~idenpa+P2ST,design=sd1)[,3:5]
+rownames(t2)<-lp
+colnames(t2)<-c("Progreso","Estancado","Retroceso")
+t2<-round(t2,2)
+xtable(t2,"Pais vs Percepción de Progreso (con el diseño muestral)","t2")
+@
+
+Mientras que para la aplicación del análisis de correspondencia múltiple se realizo la tabla binaria y se eligió el método Burst\footnote{Por razones practicas se omitió el uso de los ponderadores en este caso}, el cuadro resultante se muestra en \ref{t3}.\\
+
+<<echo=F,results=tex>>=
+db<-bd[,c("idenpa","P2ST","P16ST.G")]
+db<-db[db$P2ST!=(-1),]
+db<-db[db$P2ST!=-2,]
+db<-db[db$P16ST.G!=-2,]
+db<-db[db$P16ST.G!=-1,]
+#source("/Users/iMac6/Dropbox/!maestria_mm/multivariante/_tex/tobin.R")
+source("/home/alvaro/Dropbox/!maestria_mm/multivariante/_tex/tobin.R")
+#source("https://raw.githubusercontent.com/AlvaroLimber/Multivariante2017_mmm/master/script/tobin.R")
+binaria<-tobin(db)
+burst<-t(binaria)%*%binaria
+nb<-c(lp,c("Progreso","Estancado","Retroceso"),c("MUCHA", "ALGO", "POCA", "NINGUNA"))
+colnames(burst)<-nb
+rownames(burst)<-nb
+xtable(burst[c(1:3,19:20,24:25),c(1:3,19:20,24:25)],"Arreglo Burst (fragmento) para el analisis de correspondencia multiple","t3",digits=0)
+@
+
+\subsubsection{Supuestos del análisis de correspondencia}
+
+El principal supuesto es evaluar la independencia entre las variables, para ello se emplea el test Chi-cuadrado. Para la tabla del primer arreglo.
+
+<<echo=TRUE>>=
+#
+chisq.test(t1)
+@
+
+Mientras que para el segundo arreglo se realizan test de las 3 combinaciones posibles de las variables:
+
+<<echo=TRUE>>=
+tt1<-table(db$idenpa,db$P2ST)
+tt2<-table(db$idenpa,db$P16ST.G)
+tt3<-table(db$P2ST,db$P16ST.G)
+lapply(list(tt1,tt2,tt3),chisq.test)
+@
+
+\subsubsection{Obtención de resultados con análisis de correspondencias y valoración del ajuste conjunto.}
+
+<<fig=TRUE>>=
+source("/home/alvaro/Dropbox/!maestria_mm/multivariante/_tex/casvd.R")
+#source("https://raw.githubusercontent.com/AlvaroLimber/Multivariante2017_mmm/master/script/casvd.R")
+#source("/Users/iMac6/Dropbox/!maestria_mm/multivariante/_tex/casvd.R")
+casvd(t2,d=2,p=0,lf=lp,lc=c("Progreso","Estancado","Retroceso"))
+@
+
+<<fig=TRUE>>=
+#source("/home/alvaro/Dropbox/!maestria_mm/multivariante/_tex/casvd.R")
+mcasvd(burst,d=2,p=1,lf=colnames(burst),lc=colnames(burst),colf=c(rep("blue",18),rep("red",3),rep("black",4)))
+@
+
+Empleando las librerías
+
+<<fig=TRUE>>=
+lca<-ca(t2)
+summary(lca)
+plot(lca)
+@
+
+\subsubsection{Interpretación de los resultados}
+
+Se aprecia:
+
+\begin{enumerate}
+\item (Simple) Asociación de bloques de países según una percepción de progreso, i.e. Progreso; Bolivia, Ecuador, Uruguay, etc. Estancado: Peru, Chile, Guatemala, etc. Retroceso; Venezuela, Brasil los mas probables
+\item (Simple) Con 2 dimensiones se explica el 100\% del fenómeno, aunque una bastaría dado que explica el 82\%
+\item (Múltiple) Se identifica nuevamente bloques de países asociados al progreso y a la confianza a su gobierno, los estancadas tienen poca confianza, y los en retroceso ninguna confianza, mientras los que definen progreso marcan algo y mucha confianza
+\end{enumerate}
+
+\subsubsection{Validación de los resultados}
+
+En base a las recomendaciones del libro guía se realiza una evaluación de sensibilidad por filas y columna para ver si los resultados encontrados se mantienen, esto se realiza únicamente para el caso del análisis simple.
+
+<<echo=F,fig=TRUE>>=
+par(mfrow=c(2,2))
+casvd(t2[,-1],d=2,p=0,lf=lp[-18],lc=c("Estancado","Retroceso"))
+casvd(t2[,-2],d=2,p=0,lf=lp[-18],lc=c("Progreso","Retroceso"))
+casvd(t2[,-3],d=2,p=0,lf=lp[-18],lc=c("Progreso","Estancado"))
+@
+
+<<echo=F,fig=TRUE>>=
+par(mfrow=c(3,3))
+for(i in 1:9){
+  casvd(t2[-i,],d=2,p=0,lf=lp[-i],lc=c("Progreso","Estancado","Retroceso"))
+}
+@
+
+<<echo=F,fig=TRUE>>=
+par(mfrow=c(3,3))
+for(i in 10:18){
+  casvd(t2[-i,],d=2,p=0,lf=lp[-i],lc=c("Progreso","Estancado","Retroceso"))
+}
+@
+\end{document}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Tercera Fase: Análsis Factorial Comun}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Cuarta Fase: Ecuaciones Estructurales}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Quinta Fase: Análisis Discriminante}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conclusiones}
+\label{con}
+
